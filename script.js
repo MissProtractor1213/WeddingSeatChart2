@@ -445,119 +445,361 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("initializeFromCSV function not found. Ensure csv-processor.js is loaded.");
     }
     
-    function searchGuest() {
-        console.log("Search function called");
+    // Add this to script.js
 
-        // Check if guest list exists and venue layout exists
-        if (!window.guestList || !Array.isArray(window.guestList) || window.guestList.length === 0) {
-            console.error("Guest list is not properly loaded. Current value:", window.guestList);
+// Function to search for all matching guests
+function searchGuest() {
+    console.log("Enhanced search function called");
 
-            // Try loading sample data if available
-            if (typeof window.loadSampleGuestData === 'function') {
-                console.log("Attempting to load sample guest data");
-                window.loadSampleGuestData();
-            } else {
-                const errorMsg = document.getElementById('errorMessage');
-                if (errorMsg) {
-                    errorMsg.textContent = "Error: Guest list not loaded. Please try refreshing the page.";
-                    errorMsg.classList.remove('hidden');
-                }
-                return;
-            }
-        }
+    // Check if guest list exists and is properly loaded
+    if (!window.guestList || !Array.isArray(window.guestList) || window.guestList.length === 0) {
+        console.error("Guest list is not properly loaded. Current value:", window.guestList);
 
-        // Make sure venue layout exists
-        if (!window.venueLayout || !window.venueLayout.tables) {
-            console.error("Venue layout is not properly loaded. Current value:", window.venueLayout);
-            if (typeof window.initializeVenueMap === 'function') {
-                console.log("Attempting to initialize venue map");
-                window.initializeVenueMap();
-            }
-        }
-
-        // Get the search input and normalize it
-        const searchName = nameSearchInput.value.trim().toLowerCase();
-
-        // Get the selected side
-        const sideInput = document.querySelector('input[name="side"]:checked');
-        if (!sideInput) {
-            console.error("No side selected");
-            return;
-        }
-        const selectedSide = sideInput.value;
-
-        console.log(`Searching for "${searchName}" on "${selectedSide}" side`);
-
-        // ADDED DEBUG: Log the guest list for debugging
-        if (window.guestList) {
-            console.log("Available guests sample:", window.guestList.slice(0, 5).map(g => `${g.name} (Table ${g.table})`));
-        }
-
-        // Hide previous results
-        resultContainer.classList.add('hidden');
-        noResultContainer.classList.add('hidden');
-
-        // Don't search if input is empty
-        if (!searchName) {
-            console.log("Search input is empty");
-            return;
-        }
-
-        // Find the guest in our data, taking the side into account
-        const guest = findGuest(searchName, selectedSide);
-
-        if (guest) {
-            console.log("Guest found:", guest);
-
-            // ADDED: Make sure guest has a tableObject
-            if (!guest.tableObject && guest.table) {
-                // Try to find the table in venueLayout
-                if (window.venueLayout && window.venueLayout.tables) {
-                    guest.tableObject = window.venueLayout.tables.find(t => t.id === parseInt(guest.table));
-                    console.log("Added tableObject to guest:", guest.tableObject);
-                }
-            }
-
-            // Display guest information
-            displayGuestInfo(guest);
-
-            // If the search name doesn't exactly match the name, show a message
-            const guestNameLower = guest.name.toLowerCase();
-            const vietnameseLower = guest.vietnamese_name ? guest.vietnamese_name.toLowerCase() : '';
-
-            if (guestNameLower !== searchName && vietnameseLower !== searchName) {
-                // Create or update a fuzzy match notice
-                let fuzzyNotice = document.getElementById('fuzzyMatchNotice');
-
-                if (!fuzzyNotice) {
-                    fuzzyNotice = document.createElement('p');
-                    fuzzyNotice.id = 'fuzzyMatchNotice';
-                    fuzzyNotice.style.fontStyle = 'italic';
-                    fuzzyNotice.style.marginTop = '10px';
-                    fuzzyNotice.style.fontSize = '0.9rem';
-                    fuzzyNotice.style.color = '#666';
-
-                    // Insert it after the guest name
-                    guestNameElement.parentNode.insertBefore(fuzzyNotice, guestNameElement.nextSibling);
-                }
-
-                // Set the message based on language
-                const message = window.currentLanguage === 'en'
-                    ? `Showing closest match for "${nameSearchInput.value}"`
-                    : `Hiển thị kết quả gần nhất cho "${nameSearchInput.value}"`;
-
-                fuzzyNotice.textContent = message;
-            } else {
-                // Remove any existing fuzzy match notice
-                const fuzzyNotice = document.getElementById('fuzzyMatchNotice');
-                if (fuzzyNotice) {
-                    fuzzyNotice.remove();
-                }
-            }
+        // Try loading sample data if available
+        if (typeof window.loadSampleGuestData === 'function') {
+            console.log("Attempting to load sample guest data");
+            window.loadSampleGuestData();
         } else {
-            console.log("Guest not found");
-            // Show no result message
-            noResultContainer.classList.remove('hidden');
+            const errorMsg = document.getElementById('errorMessage');
+            if (errorMsg) {
+                errorMsg.textContent = "Error: Guest list not loaded. Please try refreshing the page.";
+                errorMsg.classList.remove('hidden');
+            }
+            return;
         }
     }
-});
+
+    // Get the search input and normalize it
+    const searchName = nameSearchInput.value.trim();
+    const searchNameLower = searchName.toLowerCase();
+
+    // Get the selected side (still useful for sorting/prioritizing results)
+    const sideInput = document.querySelector('input[name="side"]:checked');
+    if (!sideInput) {
+        console.error("No side selected");
+        return;
+    }
+    const selectedSide = sideInput.value;
+
+    console.log(`Searching for "${searchName}"`);
+
+    // Hide previous results
+    resultContainer.classList.add('hidden');
+    noResultContainer.classList.add('hidden');
+
+    // Don't search if input is empty
+    if (!searchName) {
+        console.log("Search input is empty");
+        return;
+    }
+
+    // Find ALL matching guests regardless of side
+    const exactMatches = window.guestList.filter(guest => {
+        const guestNameLower = (guest.name || "").toLowerCase().trim();
+        const vietnameseNameLower = (guest.vietnamese_name || "").toLowerCase().trim();
+
+        return guestNameLower === searchNameLower || vietnameseNameLower === searchNameLower;
+    });
+
+    // If no exact matches, try partial matches
+    const partialMatches = window.guestList.filter(guest => {
+        // Skip if it's already an exact match
+        const guestNameLower = (guest.name || "").toLowerCase().trim();
+        const vietnameseNameLower = (guest.vietnamese_name || "").toLowerCase().trim();
+
+        if (guestNameLower === searchNameLower || vietnameseNameLower === searchNameLower) {
+            return false; // Skip exact matches
+        }
+
+        return guestNameLower.includes(searchNameLower) || 
+               searchNameLower.includes(guestNameLower) ||
+               vietnameseNameLower.includes(searchNameLower) ||
+               searchNameLower.includes(vietnameseNameLower);
+    });
+
+    // Combine exact and partial matches, prioritizing exact
+    const allMatches = [...exactMatches, ...partialMatches];
+
+    // If no matches found, try fuzzy matching
+    if (allMatches.length === 0) {
+        console.log("No matches found, trying fuzzy matching");
+        const fuzzyMatches = findFuzzyMatches(searchName);
+        allMatches.push(...fuzzyMatches);
+    }
+
+    // Process based on number of matches
+    if (allMatches.length === 0) {
+        // No matches found at all
+        console.log("No matches found");
+        noResultContainer.classList.remove('hidden');
+    }
+    else if (allMatches.length === 1) {
+        // Only one match - show it directly
+        console.log("Single match found:", allMatches[0].name);
+        displayGuestInfo(allMatches[0]);
+    }
+    else {
+        // Multiple matches - prioritize matches from the selected side
+        console.log(`${allMatches.length} matches found, showing selection interface`);
+        
+        // Sort matches to prioritize the selected side
+        allMatches.sort((a, b) => {
+            // If one match is on the selected side and the other isn't, prioritize the one on the selected side
+            if ((a.side === selectedSide) && (b.side !== selectedSide)) return -1;
+            if ((a.side !== selectedSide) && (b.side === selectedSide)) return 1;
+            
+            // If both are exact matches or both are partial matches, keep original order
+            return 0;
+        });
+        
+        // Show the selection interface
+        showGuestSelectionInterface(allMatches);
+    }
+}
+
+// Function to find fuzzy matches
+function findFuzzyMatches(searchName) {
+    if (!window.guestList || !Array.isArray(window.guestList)) {
+        return [];
+    }
+
+    let bestMatches = [];
+    const minimumScore = 0.4; // Minimum similarity threshold (40%)
+
+    // Calculate similarity score for each guest
+    window.guestList.forEach(guest => {
+        // Check similarity with English name
+        const nameScore = calculateSimilarity(searchName.toLowerCase(), (guest.name || "").toLowerCase());
+
+        // Check similarity with Vietnamese name if available
+        let vnNameScore = 0;
+        if (guest.vietnamese_name) {
+            vnNameScore = calculateSimilarity(searchName.toLowerCase(), guest.vietnamese_name.toLowerCase());
+        }
+
+        // Use the better score between English and Vietnamese names
+        const bestGuestScore = Math.max(nameScore, vnNameScore);
+
+        // Only consider guests with scores above the threshold
+        if (bestGuestScore > minimumScore) {
+            // Add the score to the guest object for sorting later
+            const scoredGuest = {...guest, similarityScore: bestGuestScore};
+            bestMatches.push(scoredGuest);
+        }
+    });
+
+    // Sort by score, highest first
+    bestMatches.sort((a, b) => b.similarityScore - a.similarityScore);
+
+    // Take top matches only (limit to first 5)
+    return bestMatches.slice(0, 5);
+}
+
+// Interface for selecting between multiple matches
+function showGuestSelectionInterface(matches) {
+    // Create a container for the selection interface
+    const selectionContainer = document.createElement('div');
+    selectionContainer.id = 'matchSelectionContainer';
+    selectionContainer.className = 'selection-overlay';
+    
+    // Get translations for UI elements
+    const titleText = window.translations[window.currentLanguage]["multiple-matches"] || "Multiple Matches Found";
+    const instructionText = window.translations[window.currentLanguage]["select-correct"] || "Please select your correct entry:";
+    const backText = window.translations[window.currentLanguage]["back-button"] || "Back to Search";
+    
+    // Create the HTML content
+    selectionContainer.innerHTML = `
+        <div class="selection-card">
+            <h3>${titleText}</h3>
+            <p>${instructionText}</p>
+            <ul id="matchesList" class="matches-list"></ul>
+            <button id="cancelSelectionBtn" class="cancel-button">${backText}</button>
+        </div>
+    `;
+    
+    // Add to the document
+    document.body.appendChild(selectionContainer);
+    
+    const matchesList = document.getElementById('matchesList');
+    
+    // Get translations for the side labels
+    const brideText = window.translations[window.currentLanguage]["bride-side"] || "The Bride";
+    const groomText = window.translations[window.currentLanguage]["groom-side"] || "The Groom";
+    const selectBtnText = window.translations[window.currentLanguage]["select-btn"] || "Select";
+    const seatedAtText = window.translations[window.currentLanguage]["seated-at"] || "Seated at:";
+    
+    // Add each match to the list
+    matches.forEach((guest, index) => {
+        const listItem = document.createElement('li');
+        listItem.className = 'match-item';
+        
+        // Make sure guest has a tableObject
+        if (!guest.tableObject && guest.table) {
+            // Try to find the table in venueLayout
+            if (window.venueLayout && window.venueLayout.tables) {
+                guest.tableObject = window.venueLayout.tables.find(t => t.id === parseInt(guest.table));
+            }
+        }
+        
+        // Get table name or use table number as fallback
+        const tableName = guest.tableObject && guest.tableObject.name 
+            ? guest.tableObject.name 
+            : `Table ${guest.table}`;
+        
+        // Create more detailed info to help users identify themselves
+        const side = guest.side === 'bride' ? brideText : groomText;
+            
+        listItem.innerHTML = `
+            <div class="match-details">
+                <span class="match-name">${guest.name}</span>
+                <div class="match-info">
+                    <div><strong>${side}</strong></div>
+                    <div>${seatedAtText} <strong>${tableName}</strong></div>
+                </div>
+            </div>
+            <button class="select-match-btn" data-index="${index}">${selectBtnText}</button>
+        `;
+        
+        matchesList.appendChild(listItem);
+    });
+    
+    // Add event listeners to buttons
+    document.querySelectorAll('.select-match-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            selectionContainer.remove();
+            displayGuestInfo(matches[index]);
+        });
+    });
+    
+    // Cancel button
+    document.getElementById('cancelSelectionBtn').addEventListener('click', function() {
+        selectionContainer.remove();
+    });
+    
+    // Add CSS for the selection interface
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .selection-card {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .selection-card h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            font-family: 'Playfair Display', serif;
+            color: #333;
+        }
+        
+        .selection-card p {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        
+        .matches-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        
+        .match-item {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .match-item:hover {
+            border-color: #c896e0;
+            background-color: #faf5ff;
+        }
+        
+        .match-name {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+        
+        .match-info {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .select-match-btn {
+            background-color: #c896e0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .select-match-btn:hover {
+            background-color: #b57ad1;
+        }
+        
+        .cancel-button {
+            background-color: #f2f2f2;
+            color: #666;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+            transition: background-color 0.3s;
+        }
+        
+        .cancel-button:hover {
+            background-color: #e6e6e6;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .selection-card {
+                padding: 20px;
+                width: 95%;
+            }
+            
+            .match-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .select-match-btn {
+                margin-top: 10px;
+                width: 100%;
+            }
+        }
+    `;
+    
+    document.head.appendChild(styleElement);
+}
