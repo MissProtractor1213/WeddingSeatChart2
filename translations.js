@@ -21,6 +21,16 @@ const translations = {
         "try-again": "Try Again",
         "assistance-message": "IF YOU NEED ASSISTANCE, PLEASE ASK ONE OF OUR USHERS OR WEDDING PARTY MEMBERS.",
         "fuzzy-match": "Showing closest match for",
+        "multiple-matches": "Multiple Matches Found",
+        "select-correct": "Please select your correct entry:",
+        "select-btn": "This is me",
+        "verify-details": "Please Verify Your Details",
+        "is-this-you": "Is this you?",
+        "yes-correct": "Yes, this is correct",
+        "no-not-me": "No, this is not me",
+        "search-by-name": "Search by Name",
+        "search-by-table": "Search by Table",
+        "enter-table-number": "Enter Table Number",
         
         // Venue element labels
         "stage-label": "Stage",
@@ -50,6 +60,16 @@ const translations = {
         "try-again": "Thử Lại",
         "assistance-message": "NẾU BẠN CẦN HỖ TRỢ, VUI LÒNG HỎI MỘT TRONG CÁC PHỤC VỤ HOẶC THÀNH VIÊN TRONG ĐOÀN CƯỚI.",
         "fuzzy-match": "Hiển thị kết quả gần nhất cho",
+        "multiple-matches": "Tìm Thấy Nhiều Kết Quả",
+        "select-correct": "Vui lòng chọn thông tin chính xác của bạn:",
+        "select-btn": "Đây là tôi",
+        "verify-details": "Vui Lòng Xác Nhận Thông Tin",
+        "is-this-you": "Đây có phải là bạn không?",
+        "yes-correct": "Vâng, thông tin chính xác",
+        "no-not-me": "Không, đây không phải là tôi",
+        "search-by-name": "Tìm theo Tên",
+        "search-by-table": "Tìm theo Bàn",
+        "enter-table-number": "Nhập Số Bàn"
         
         // Venue element labels
         "stage-label": "Sân Khấu",
