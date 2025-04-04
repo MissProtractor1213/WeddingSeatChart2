@@ -25,23 +25,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add this logging code to check if data is loading
     console.log("DOM fully loaded");
 
-    // Add event listeners
-    if (searchButton) {
-        searchButton.addEventListener('click', searchGuest);
-        console.log("Search button event listener added");
-    } else {
-        console.error("Search button not found in the DOM");
-    }
+   // Add this to the end of the DOMContentLoaded event in script.js
 
+    // Replace the search button event handler with our enhanced version
+    if (searchButton) {
+        // Remove existing event listener (if any)
+        searchButton.removeEventListener('click', searchGuest);
+        
+        // Add new enhanced search function
+        searchButton.addEventListener('click', searchGuest);
+        console.log("Enhanced search button event listener added");
+    }
+    
+    // Also update the keyup event for the search input
     if (nameSearchInput) {
+        // Remove existing event listeners
+        nameSearchInput.removeEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                searchGuest();
+            }
+        });
+        
+        // Add new event listener
         nameSearchInput.addEventListener('keyup', function(event) {
             if (event.key === 'Enter') {
                 searchGuest();
             }
         });
-        console.log("Search input event listener added");
-    } else {
-        console.error("Search input not found in the DOM");
+        console.log("Enhanced search input event listener added");
     }
 
     // Back button functionality
